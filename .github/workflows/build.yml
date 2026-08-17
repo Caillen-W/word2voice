@@ -78,10 +78,25 @@ jobs:
           echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
 
       - name: Build APK (debug)
+        id: build
         shell: bash
         run: |
           set -o pipefail
           buildozer -v android debug 2>&1 | tee buildozer-full.log
+        continue-on-error: true
+
+      - name: Print last 300 lines of build log on failure
+        if: steps.build.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "========== BUILD FAILED =========="
+          echo "===== Last 300 lines of buildozer-full.log ====="
+          tail -n 300 buildozer-full.log
+          echo "===== End of log ====="
+
+      - name: Fail the job if build failed
+        if: steps.build.outcome == 'failure'
+        run: exit 1
 
       - name: Upload APK
         if: always()
