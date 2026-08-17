@@ -2,21 +2,18 @@ name: Build Android APK
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 env:
-  ANDROID_HOME: /home/runner/.buildozer/android/platform/android-sdk
-  ANDROIDSDK: /home/runner/.buildozer/android/platform/android-sdk
-  ANDROID_NDK_HOME: /home/runner/.buildozer/android/platform/android-ndk
-  ACCEPT_EULA: Y
-  ANDROID_ACCEPT_LICENSES: 1
+  PACKAGE_NAME: word2voice
   DEBIAN_FRONTEND: noninteractive
 
 jobs:
   build:
     runs-on: ubuntu-22.04
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -26,58 +23,77 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Python
+      - name: Setup Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install buildozer
-        run: |
-          pip install --upgrade pip
-          pip install buildozer cython==0.29.36
+      - name: Setup Android SDK + NDK + build-tools + accept all licenses
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platform-tools
+            build-tools;34.0.0
+            platforms;android-34
+            cmdline-tools;latest
+            ndk;25b
 
-      - name: Install system dependencies
+      - name: Install system dependencies (incl. native aidl)
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y zip unzip openjdk-17-jdk build-essential ccache git \
-            autoconf libtool pkg-config zlib1g-dev libncurses-dev libffi-dev libssl-dev aidl
+          sudo apt-get install -y --no-install-recommends \
+            zip unzip openjdk-17-jdk build-essential ccache git \
+            autoconf libtool pkg-config zlib1g-dev libncurses-dev \
+            libffi-dev libssl-dev libbz2-dev libreadline-dev libsqlite3-dev \
+            libjpeg-dev libpng-dev \
+            aidl
 
-      - name: Pre-install Android SDK (in buildozer's default folder) and accept all licenses
+      - name: Install / upgrade buildozer and friends
+        run: |
+          pip install --upgrade pip
+          pip install -U \
+            buildozer==1.5.0 \
+            cython==0.29.36 \
+            virtualenv \
+            sh
+
+      - name: Patch buildozer's SDK layout (new cmdline-tools)
         run: |
           set -eux
-          mkdir -p "$ANDROID_HOME/cmdline-tools"
-          curl -fsSL -o /tmp/cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q /tmp/cmdline-tools.zip -d "$ANDROID_HOME/cmdline-tools"
-          mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
-          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-          yes | sdkmanager --sdk_root="$ANDROID_HOME" --licenses
-          sdkmanager --sdk_root="$ANDROID_HOME" \
-            "platform-tools" \
-            "build-tools;34.0.0" \
-            "platforms;android-34" \
-            "cmdline-tools;latest"
-          # 再接受一次，避免新装的组件又触发许可证确认
-          yes | sdkmanager --sdk_root="$ANDROID_HOME" --licenses || true
-          # buildozer 老版本硬编码找旧路径 tools/bin/sdkmanager，
-          # 新版 SDK 已把它放到 cmdline-tools/latest/bin/，这里建立软链接兜底
-          mkdir -p "$ANDROID_HOME/tools/bin"
-          for tool in "$ANDROID_HOME/cmdline-tools/latest/bin/"*; do
-            ln -sf "$tool" "$ANDROID_HOME/tools/bin/$(basename "$tool")"
+          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$SDK"
+          # buildozer 老路径 tools/bin/sdkmanager 指向新版位置
+          mkdir -p "$SDK/tools/bin"
+          SRC="$SDK/cmdline-tools/latest/bin"
+          [ -d "$SRC" ] || SRC="$SDK/cmdline-tools/9.0/bin"
+          for t in "$SRC"/*; do
+            ln -sf "$t" "$SDK/tools/bin/$(basename "$t")"
           done
-          # 把 licenses 目录拷到 buildozer 可能读取的几个位置兜底
-          for d in \
-            "$HOME/.android" \
-            "$ANDROID_HOME/../android-sdk/licenses" \
-            "$HOME/.buildozer/android/platform/android-sdk/licenses"; do
+          # licenses 兜底
+          for d in "$HOME/.android" "$SDK/licenses"; do
             mkdir -p "$d"
-            cp -rf "$ANDROID_HOME/licenses/"* "$d/" 2>/dev/null || true
+            cp -rf "$SDK/licenses/"* "$d/" 2>/dev/null || true
           done
+          # 给 buildozer 用的 NDK 环境变量
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ANDROID_NDK_HOME" >> "$GITHUB_ENV"
 
-      - name: Build APK
-        run: yes | buildozer -v android debug
+      - name: Build APK (debug)
+        run: buildozer -v android debug
 
       - name: Upload APK
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: word2voice-apk
           path: bin/*.apk
+          if-no-files-found: warn
+
+      - name: Upload build logs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildozer-logs
+          path: |
+            .buildozer/
+            **/*.log
