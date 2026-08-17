@@ -78,7 +78,7 @@ jobs:
           echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
 
       - name: Build APK (debug)
-        run: buildozer -v android debug
+        run: buildozer -v android debug 2>&1 | tee buildozer-full.log
 
       - name: Upload APK
         if: always()
@@ -95,4 +95,5 @@ jobs:
           name: buildozer-logs
           path: |
             .buildozer/
+            buildozer-full.log
             **/*.log

@@ -16,7 +16,10 @@ version = 0.1
 
 # 运行所需依赖（会打包进 APK）
 # 注意：edge-tts 需要 aiohttp；aiohttp 在 p4a 上需要 cffi 作为编译依赖
-requirements = python3,kivy==2.3.0,edge-tts,aiohttp,certifi,cffi
+requirements = python3==3.12.8,kivy==2.3.0,edge-tts,aiohttp,certifi,cffi
+
+# 固定使用 NDK r25b（p4a 官方推荐稳定版本，避免 r28c 的兼容问题）
+android.ndk = 25b
 
 # ---------- Android 配置 ----------
 # 目标 / 最低 SDK 版本
