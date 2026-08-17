@@ -58,6 +58,12 @@ jobs:
             "cmdline-tools;latest"
           # 再接受一次，避免新装的组件又触发许可证确认
           yes | sdkmanager --sdk_root="$ANDROID_HOME" --licenses || true
+          # buildozer 老版本硬编码找旧路径 tools/bin/sdkmanager，
+          # 新版 SDK 已把它放到 cmdline-tools/latest/bin/，这里建立软链接兜底
+          mkdir -p "$ANDROID_HOME/tools/bin"
+          for tool in "$ANDROID_HOME/cmdline-tools/latest/bin/"*; do
+            ln -sf "$tool" "$ANDROID_HOME/tools/bin/$(basename "$tool")"
+          done
           # 把 licenses 目录拷到 buildozer 可能读取的几个位置兜底
           for d in \
             "$HOME/.android" \
