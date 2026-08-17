@@ -15,8 +15,9 @@ source.include_exts = py,png,jpg,kv,atlas,cfg,txt,ttf,json
 version = 0.1
 
 # 运行所需依赖（会打包进 APK）
-# 注意：edge-tts 需要 aiohttp；aiohttp 在 p4a 上需要 cffi 作为编译依赖
-requirements = python3==3.12.8,kivy==2.3.0,edge-tts,aiohttp,certifi,cffi
+# hostpython3 与 python3 必须同版本，否则 p4a 会直接报错退出
+# edge-tts 依赖 aiohttp；aiohttp 在 p4a 上需要 cffi 及若干传递依赖
+requirements = hostpython3==3.12.8,python3==3.12.8,kivy==2.3.0,edge-tts==7.2.0,aiohttp,multidict,attrs,yarl,async-timeout,charset-normalizer,idna,certifi,cffi,typing-extensions
 
 # 固定使用 NDK r25b（p4a 官方推荐稳定版本，避免 r28c 的兼容问题）
 android.ndk = 25b

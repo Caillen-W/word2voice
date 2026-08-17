@@ -1,5 +1,5 @@
 # 桌面测试用依赖（APK 打包依赖以 buildozer.spec 的 requirements 为准）
 kivy
-edge-tts
+edge-tts==7.2.0
 aiohttp
 certifi
