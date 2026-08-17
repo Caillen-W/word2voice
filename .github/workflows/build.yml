@@ -93,6 +93,13 @@ jobs:
           echo "===== Last 300 lines of buildozer-full.log ====="
           tail -n 300 buildozer-full.log
           echo "===== End of log ====="
+          # 把日志写入 step summary，匿名可直接看到
+          {
+            echo "## Buildozer failed - last 300 lines"
+            echo '```'
+            tail -n 300 buildozer-full.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fail the job if build failed
         if: steps.build.outcome == 'failure'
