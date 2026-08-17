@@ -21,6 +21,7 @@ requirements = python3,kivy,edge-tts,aiohttp,certifi,cffi
 # 目标 / 最低 SDK 版本
 android.api = 34
 android.minapi = 24
+android.buildtools = 34.0.0
 android.accept_sdk_licenses = True
 
 # 架构（arm64 为主，兼容 32 位老机器）
